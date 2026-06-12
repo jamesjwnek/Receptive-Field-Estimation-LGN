@@ -12,6 +12,7 @@ rng = np.random.default_rng()
 #create 2000 row (each entry) by 32*32 column (number of pixels) random uniformly distributed dataset
 template = rng.uniform(low=-1.0, high=1.0, size=(2000, 32*32))
 
+"""
 #get the column indices to disregard in the dataset (do not match row and column needed)
 rf_column_indices = np.arange(1, 32*32+1, 1) #all column indices in the dataset
 rf_column_indices = rf_column_indices.astype(np.float64)
@@ -26,6 +27,13 @@ just_rf_columns = np.delete(template, rf_column_indices, axis=1)
 
 #response here is just the sum of these columns
 label_col = np.sum(just_rf_columns, axis=1, keepdims=True)
+
+#noise column
+noise_col = rng.normal(loc=0.0, scale=1.0, size=label_col.shape)
+"""
+sin_row = np.sin(np.arange(0, 32*32, 1))
+weights = np.tile(sin_row, [2000, 1])
+label_col = np.sum(template * weights, axis=1, keepdims=True)
 
 #add label column to dataset then save as csv
 final_array = np.concatenate((template, label_col), axis=1)
