@@ -33,17 +33,22 @@ for name in df["movienames"]:
 
 	H,W,T = reduced.shape
 	for t in range(T):
+		#each slice is the stimulus at one time frame
 		slicee = reduced[:,:,t]
+		
+		#change scaling so max value is pure white, min value is pure black, linear in between
 		s_min, s_max = np.min(slicee), np.max(slicee)
-
 		factor = 256 / (s_max - s_min)
 		reduced[:,:,t] = factor * (slicee - s_min)
 
+		#triple the numpy array to make it rgb-friendly then scale up
 		surf = pygame.surfarray.make_surface(np.stack([reduced[:,:,t]]* 3, axis=2))
 		scale_surf = pygame.transform.scale(surf, (480, 480))
 
+		#concatenate flattened movie frame
 		frame = np.concatenate((frame, reduced[:,:,t].reshape(-1)), axis=0)
 
+		#normal surface is the movie with no processing, full size
 		normal = movie[:,:,t] + track_mean
 		norm_surf = pygame.surfarray.make_surface(np.stack([normal]*3, axis=2))
 		screen.blit(norm_surf, (480, 0))
@@ -60,8 +65,6 @@ for name in df["movienames"]:
 	
 	#stack vertically on the empty array
 	arr = np.vstack((arr, fslice))
-
-	
 
 #remove row of zeros
 arr = arr[1:,:]

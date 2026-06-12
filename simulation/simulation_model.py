@@ -7,7 +7,6 @@ from tensorflow import keras
 from tensorflow.keras import layers, models, regularizers
 
 df = pd.read_csv("simulation_data_sum_rf.csv")
-
 train_df = df.sample(frac=0.8, random_state=42)
 X_train = train_df.iloc[:, :-1]
 y_train = train_df.iloc[:, -1]
@@ -15,15 +14,15 @@ test_df = df.drop(train_df.index)
 X_test = test_df.iloc[:, :-1]
 y_test = test_df.iloc[:, -1]
 
-print(X_train.head())
-
 model = models.Sequential([
-	layers.Input(shape=(1024,)),
-	layers.Dense(1, kernel_regularizer=regularizers.L1(0.001))
+	layers.Input(shape=(1024,)), #input layer has 32*32 entries
+	layers.Dense(1, kernel_regularizer=regularizers.L1(0.001)) #output layer for regression is dense with one node, l1 regularization
 	])
 
+#adam optimizer
 optimizer = keras.optimizers.Adam(learning_rate=0.001)
 
+#compile using r^2 (VAF) as the metric
 model.compile(optimizer=optimizer, loss="mse", metrics=[keras.metrics.R2Score()])
 
 model.fit(X_train, y_train, epochs=200, validation_split=0.2)
