@@ -1,0 +1,27 @@
+#code to create simulation data, stored as a csv file
+#columns 1-(32x32) are for pixel darkness, column (32x32 + 1) is for the response
+#response is sum of pixels in rows 20-24 and columns 10-14
+
+#will create 1200 entries total, not split into train - validation - test yet
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+rng = np.random.default_rng()
+template = rng.uniform(low=-1.0, high=1.0, size=(2000, 32*32))
+
+rf_column_indices = np.arange(1, 32*32+1, 1)
+rf_column_indices = rf_column_indices.astype(np.float64)
+rf_column_indices.shape = (32, 32)
+rf_column_indices[20:24, 10:14] = np.nan
+rf_column_indices.reshape(-1)
+rf_column_indices = rf_column_indices[~np.isnan(rf_column_indices)]
+rf_column_indices = rf_column_indices.astype(int) - 1
+
+just_rf_columns = np.delete(template, rf_column_indices, axis=1)
+
+label_col = np.sum(just_rf_columns, axis=1, keepdims=True)
+
+final_array = np.concatenate((template, label_col), axis=1)
+
+np.savetxt("simulation_data_sum_rf.csv", final_array, delimiter=",")
