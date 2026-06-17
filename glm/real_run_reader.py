@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-directory = Path("C:/neurophysiology_data/simulation/simulation_runs")
+directory = Path("C:/neurophysiology_data/glm/runs")
 files = [f for f in directory.iterdir() if f.is_file()]
 files.reverse()
 
@@ -47,7 +47,7 @@ def show_run(path):
 
 	label_stuff = data.copy()
 	weights = np.array(label_stuff.pop("weights", None))
-	weights = weights.reshape((data["weight_frame_size"][0], data["weight_frame_size"][1], data["time_lags"]))
+	weights = weights.reshape((20,20,8))
 	label_stuff.pop("training_stats", None)
 	label_stuff.pop("biases", None)
 
@@ -68,7 +68,7 @@ def show_run(path):
 	global weights_list
 	weights_list = []
 	weights = weights * slider.getValue() / weights.max()
-	for i in range(data["time_lags"]):
+	for i in range(8):
 		pic = weights[:,:,i]
 		pic = 256 / (1 + np.exp(-1 * pic))
 		picsurf = pygame.surfarray.make_surface(np.stack([pic.T]*3, axis=2))
@@ -98,11 +98,9 @@ while running:
 		screen.blit(stats_surface, (400, 0))
 		for i, x in enumerate(labels_list):
 			screen.blit(x, (420, 20 + i*30))
-		
-		mid = (len(weights_list) + 1)// 2
 
-		row_1_weights = weights_list[0:mid]
-		row_2_weights = weights_list[mid:-1]
+		row_1_weights = weights_list[0:5]
+		row_2_weights = weights_list[5:10]
 
 		for i, x in enumerate(row_1_weights):
 			screen.blit(x, (650 + 250*i, 50))

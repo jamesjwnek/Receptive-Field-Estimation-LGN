@@ -47,4 +47,4 @@ noise_col = np.zeros(label_col.shape)
 
 #add label column to dataset then save as csv
 final_array = np.concatenate((template, label_col+noise_col), axis=1)
-
+np.savetxt("C:/neurophysiology_movies/simulation_data_sum_rf.csv", final_array, delimiter=",")

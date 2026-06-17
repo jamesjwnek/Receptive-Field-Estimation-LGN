@@ -8,7 +8,7 @@ from tensorflow.keras import layers, models, regularizers
 import keras.backend as K
 from keras.callbacks import EarlyStopping
 
-df = pd.read_csv("simulation_data_sum_rf.csv")
+df = pd.read_csv("C:/neurophysiology_movies/simulation_data_sum_rf.csv")
 train_df = df.sample(frac=0.8, random_state=42)
 X_train = train_df.iloc[:, :-1]
 y_train = train_df.iloc[:, -1]

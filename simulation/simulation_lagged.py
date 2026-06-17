@@ -10,13 +10,13 @@ from keras.callbacks import EarlyStopping
 
 train_frac = 0.8
 patience = 50
-regularizer_type = "L1"
-regularizer_value = 0.2
+regularizer_type = "L2"
+regularizer_value = 0.01
 learning_rate = 0.0001
-no_epochs = 400
+no_epochs = 200
 val_split = 0.2
 
-df = pd.read_csv("simulation_data_lagged_rf.csv")
+df = pd.read_csv("C:/neurophysiology_movies/simulation_data_lagged_rf.csv", header=None)
 train_df = df.sample(frac=train_frac, random_state=42)
 X_train = train_df.iloc[:, :-1]
 y_train = train_df.iloc[:, -1]
@@ -90,7 +90,10 @@ run_data = {
     "test_loss": test_loss,
     "test_accuracy": test_accuracy,
     "weights": weights.tolist(),
-    "biases": biases.tolist()
+    "biases": biases.tolist(),
+    "weight_frame_size": (20, 20),
+    "time_lags": 10,
+    "time_window": "N/A, spatiotemporal"
 }
 
 target_folder = Path("C:/neurophsyiology_data/simulation/simulation_runs")
