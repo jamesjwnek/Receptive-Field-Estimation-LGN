@@ -10,9 +10,10 @@ from keras.callbacks import EarlyStopping
 
 no_lags = 8
 
-df = pd.read_csv("C:/neurophysiology_movies/full_dataset.csv")
+train_df = np.load("C:/neurophysiology_data/datasets/H6214.010/H6214.010_train_dataset.npy")
+val_df = np.load("C:/neurophysiology_data/datasets/H6214.010/H6214.010_val_dataset.npy")
+test_df = np.load("C:/neurophysiology_data/datasets/H6214.010/H6214.010_test_dataset.npy")
 
-train_frac = 0.8
 patience = 50
 regularizer_type = "L2"
 regularizer_value = 0.01
@@ -20,21 +21,23 @@ learning_rate = 0.001
 no_epochs = 200
 val_split = 0.2
 
-train_df = df.sample(frac=train_frac, random_state=42)
-X_train = train_df.iloc[:, :-1]
-y_train = train_df.iloc[:, -1]
-test_df = df.drop(train_df.index)
-X_test = test_df.iloc[:, :-1]
-y_test = test_df.iloc[:, -1]
+X_train = train_df[:, :-1]
+y_train = train_df[:, -1]
+
+X_val = val_df[:, :-1]
+y_val = val_df[:, -1]
+
+X_test = test_df[:, :-1]
+y_test = test_df[:, -1]
 
 if regularizer_type == "L1":
     model = models.Sequential([
-    	layers.Input(shape=(400*no_lags,)), #input layer has 20*20*no_lags entries
+    	layers.Input(shape=(900*no_lags,)), #input layer has 20*20*no_lags entries
     	layers.Dense(1, kernel_regularizer=regularizers.L1(regularizer_value)) #output layer for regression is dense with one node, l1 regularization
     	])
 elif regularizer_type == "L2":
     model = models.Sequential([
-        layers.Input(shape=(400*no_lags,)), #input layer has 20*20*no_lags entries
+        layers.Input(shape=(900*no_lags,)), #input layer has 20*20*no_lags entries
         layers.Dense(1, kernel_regularizer=regularizers.L2(regularizer_value)) #output layer for regression is dense with one node, l1 regularization
         ])
 
@@ -51,7 +54,7 @@ def r2_score(y_true, y_pred):
 model.compile(optimizer=optimizer, loss="mse", metrics=[r2_score])
 
 if patience == None:
-    history = model.fit(X_train, y_train, epochs=no_epochs, validation_split=val_split)
+    history = model.fit(X_train, y_train, epochs=no_epochs, validation_data=(X_val, y_val))
 else:
     #early stopping criteria
     early_stopping = EarlyStopping(
@@ -60,7 +63,7 @@ else:
         restore_best_weights=True # Rewind model weights to the best epoch's state
     )
 
-    history = model.fit(X_train, y_train, epochs=no_epochs, validation_split=val_split, callbacks=[early_stopping])
+    history = model.fit(X_train, y_train, epochs=no_epochs, validation_data=(X_val, y_val), callbacks=[early_stopping])
 
 
 
@@ -82,7 +85,6 @@ from pathlib import Path
 import os
 
 run_data = {
-    "train_frac": train_frac,
     "patience": patience,
     "regularizer_type": regularizer_type,
     "regularizer_value": regularizer_value,
