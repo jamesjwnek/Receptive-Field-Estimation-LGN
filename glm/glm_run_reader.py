@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-directory = Path("C:/neurophysiology_data/glm/runs")
+directory = Path("C:/neurophysiology_projects/glm/runs")
 files = [f for f in directory.iterdir() if f.is_file()]
 files.reverse()
 
