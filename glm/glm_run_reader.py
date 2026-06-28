@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+
+
 directory = Path("C:/neurophysiology_projects/glm/runs")
 files = [f for f in directory.iterdir() if f.is_file()]
 files.reverse()
@@ -47,7 +49,7 @@ def show_run(path):
 
 	label_stuff = data.copy()
 	weights = np.array(label_stuff.pop("weights", None))
-	weights = weights.reshape((20,20,8))
+	weights = weights.reshape((label_stuff["frame_width"],label_stuff["frame_width"],label_stuff["no_lags"]))
 	label_stuff.pop("training_stats", None)
 	label_stuff.pop("biases", None)
 
@@ -68,7 +70,7 @@ def show_run(path):
 	global weights_list
 	weights_list = []
 	weights = weights * slider.getValue() / weights.max()
-	for i in range(8):
+	for i in range(label_stuff["no_lags"]):
 		pic = weights[:,:,i]
 		pic = 256 / (1 + np.exp(-1 * pic))
 		picsurf = pygame.surfarray.make_surface(np.stack([pic.T]*3, axis=2))

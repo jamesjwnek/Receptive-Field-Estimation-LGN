@@ -1,0 +1,9 @@
+{
+    "training_method": "manual",
+    "patience": 50,
+    "regularizer_type": "l2",
+    "regularizer_value": 0.01,
+    "learning_rate": {
+        "default": 0.0001
+    }
+}
