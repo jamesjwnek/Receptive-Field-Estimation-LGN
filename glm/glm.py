@@ -19,12 +19,20 @@ def r2_score(y_true, y_pred):
 	return 1 - ss_res / (ss_tot + K.epsilon())
 
 class GLMModel:
-	def __init__(self, n_lags, frame_width):
+	def __init__(self, n_lags, unprocessed_frame_width, stride_val_x, stride_val_y, crop_width, downsample_factor):
 		self.regularizer_value = 0.01
 		self.n_lags = n_lags
-		self.frame_width = frame_width
-		self.n_features = self.n_lags * self.frame_width * self.frame_width
+		self.unprocessed_frame_width = unprocessed_frame_width
+		self.stride_val_x = stride_val_x
+		self.stride_val_y = stride_val_y
+		self.crop_width = crop_width
+		self.downsample_factor = downsample_factor
+		
+		processed_frame_width = self.crop_width // self.downsample_factor
+
+		self.n_features = self.n_lags * processed_frame_width * processed_frame_width
 		self.learning_rate = 0.0001
+		self.run_data = None
 
 		self.model_noreg = models.Sequential([
 			layers.Input(shape=(self.n_features,)),
@@ -72,7 +80,7 @@ class GLMModel:
 		self.model_l1.compile(optimizer=self.optimizer, loss="mse", metrics=[r2_score])
 		self.model_l2.compile(optimizer=self.optimizer, loss="mse", metrics=[r2_score])
 
-	def train_manual(self, train_dataset, val_dataset, test_dataset, no_epochs, patience, reg_type, reg_value, learning_rate):
+	def train_manual(self, train_dataset, val_dataset, no_epochs, patience, reg_type, reg_value, learning_rate):
 		self.update_lr(learning_rate["default"])
 		model = self.update_reg_val(reg_type, reg_value)
 		self.compile_models()
@@ -164,19 +172,16 @@ class GLMModel:
 			"val_r2s": val_r2s
 		}
 
-		test_loss, test_accuracy = model.evaluate(test_dataset)
-		print(f"Test Loss: {test_loss:.4f}")
-		print(f"Test Accuracy: {test_accuracy:.4f}")
+		self.model = model
 
 		layer_weights = model.layers[0].get_weights()
 		weights = layer_weights[0]
 		biases = layer_weights[1]
 
 		plt.ioff()
-		plt.show()
 		
 
-		run_data = {
+		self.run_data = {
 			"training_method": "manual",
 			"patience": patience,
 			"regularizer_type": reg_type,
@@ -184,18 +189,18 @@ class GLMModel:
 			"learning_rate": learning_rate,
 			"no_epochs": no_epochs,
 			"training_stats": training_stats,
-			"test_loss": test_loss,
-			"test_accuracy": test_accuracy,
 			"weights": weights.tolist(),
 			"biases": biases.tolist(),
 			"no_lags": self.n_lags,
-			"frame_width": self.frame_width
+			"crop_width": self.crop_width,
+			"downsample_factor": self.downsample_factor,
+			"stride_val_x": self.stride_val_x,
+			"stride_val_y": self.stride_val_y
 
 		}
+		plt.close("all")
 
-		self.export_run(run_data)
-
-	def train_auto(self, train_dataset, val_dataset, test_dataset, no_epochs, patience, reg_type, reg_value, learning_rate):
+	def train_auto(self, train_dataset, val_dataset, no_epochs, patience, reg_type, reg_value, learning_rate):
 		model = self.update_reg_val(reg_type, reg_value)
 		self.update_lr(learning_rate)
 		self.compile_models()
@@ -211,15 +216,11 @@ class GLMModel:
 
 			history = model.fit(train_dataset, epochs=no_epochs, validation_data=val_dataset, callbacks=[early_stopping])
 
-		test_loss, test_accuracy = model.evaluate(test_dataset)
-		print(f"Test Loss: {test_loss:.4f}")
-		print(f"Test Accuracy: {test_accuracy:.4f}")
-
 		layer_weights = model.layers[0].get_weights()
 		weights = layer_weights[0]
 		biases = layer_weights[1]
 
-		run_data = {
+		self.run_data = {
 			"training_method": "auto",
 			"patience": patience,
 			"regularizer_type": reg_type,
@@ -227,23 +228,33 @@ class GLMModel:
 			"learning_rate": learning_rate,
 			"no_epochs": no_epochs,
 			"training_stats": history.history,
-			"test_loss": test_loss,
-			"test_accuracy": test_accuracy,
 			"weights": weights.tolist(),
 			"biases": biases.tolist(),
 			"no_lags": self.n_lags,
-			"frame_width": self.frame_width
+			"crop_width": self.crop_width,
+			"downsample_factor": self.downsample_factor,
+			"stride_val_x": self.stride_val_x,
+			"stride_val_y": self.stride_val_y
 
 		}
 
-		self.export_run(run_data)
+		self.model = model
 
-	def export_run(self, run_dict):
+	def test_model(self, test_dataset):
+		test_loss, test_accuracy = self.model.evaluate(test_dataset)
+		print(f"Test Loss: {test_loss:.4f}")
+		print(f"Test Accuracy: {test_accuracy:.4f}")
+		self.run_data["test_loss"] = test_loss
+		self.run_data["test_accuracy"] = test_accuracy
+
+	def export_run(self, overall_trial_name):
 		now = str(datetime.now())
 		now = now.replace(" ", "_")
 		now = now.replace(":", "-")
 
 		file_name = "run_" + now + ".json"
-		with open("C:/neurophysiology_projects/glm/runs/" + file_name, "w", encoding="utf-8") as file:
-			json.dump(run_dict, file, indent=4)
+
+		os.makedirs("C:/neurophysiology_projects/glm/runs/" + overall_trial_name, exist_ok=True)
+		with open("C:/neurophysiology_projects/glm/runs/" + overall_trial_name + "/" + file_name, "w", encoding="utf-8") as file:
+			json.dump(self.run_data, file, indent=4)
 

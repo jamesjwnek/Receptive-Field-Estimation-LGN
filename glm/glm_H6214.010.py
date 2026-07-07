@@ -9,50 +9,11 @@ import keras.backend as K
 from keras.callbacks import EarlyStopping
 
 from glm import GLMModel
-
-
-train_df = np.load("C:/neurophysiology_data/datasets/H6214.010/H6214.010_train_dataset.npy", mmap_mode="r")
-val_df = np.load("C:/neurophysiology_data/datasets/H6214.010/H6214.010_val_dataset.npy", mmap_mode="r")
-test_df = np.load("C:/neurophysiology_data/datasets/H6214.010/H6214.010_test_dataset.npy", mmap_mode="r")
-
-def generator_train():
-    for row in train_df:
-        yield row[:-1].astype(np.float32), row[-1].astype(np.float32)
-
-def generator_val():
-    for row in val_df:
-        yield row[:-1].astype(np.float32), row[-1].astype(np.float32)
-
-def generator_test():
-    for row in test_df:
-        yield row[:-1].astype(np.float32), row[-1].astype(np.float32)
+from movieprepper import create_dataset
+import gc
 
 batch_size = 64
-train_ds = tf.data.Dataset.from_generator(
-    generator_train, 
-    output_signature=(
-        tf.TensorSpec(shape=(train_df.shape[1]-1,), dtype=tf.float32),
-        tf.TensorSpec(shape=(), dtype=tf.float32)
-    )
-).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
-val_ds = tf.data.Dataset.from_generator(
-    generator_train, 
-    output_signature=(
-        tf.TensorSpec(shape=(val_df.shape[1]-1,), dtype=tf.float32),
-        tf.TensorSpec(shape=(), dtype=tf.float32)
-    )
-).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
-test_ds = tf.data.Dataset.from_generator(
-    generator_train, 
-    output_signature=(
-        tf.TensorSpec(shape=(test_df.shape[1]-1,), dtype=tf.float32),
-        tf.TensorSpec(shape=(), dtype=tf.float32)
-    )
-).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
-patience = 50
+patience = 20
 regularizer_type = "l1"
 regularizer_value = 0.01
 learning_rate = {
@@ -60,11 +21,40 @@ learning_rate = {
     5e-5: (100, 200),
     1e-5: (0, 100)
 }
-no_epochs = 500
+no_epochs = 200
 no_lags = 8
-frame_width = 30
 
-model = GLMModel(no_lags, frame_width)
+unprocessed_width = 480
+stride = 60
+crop_width = 120
+downsample_factor = 4
 
-model.train_manual(train_ds, val_ds, test_ds, no_epochs, patience, regularizer_type, regularizer_value, learning_rate)
+def create_stride_starts_list(unprocessed_width, stride, crop_width):
+    i = 0
+    while unprocessed_width - crop_width >= i:
+        yield i
+        i += stride
+
+stride_list = list(create_stride_starts_list(unprocessed_width, stride, crop_width))
+
+for i in stride_list:
+    for j in stride_list:
+        print("Starting new model run. Coordinates: ", (i, j))
+        crop_window = (i, j, i+crop_width, j+crop_width)
+
+        train_ds = create_dataset(crop_window, downsample_factor, "est", "est_resp", "train", "", batch_size, no_lags)
+        val_ds = create_dataset(crop_window, downsample_factor, "reg", "reg_resp", "validation", "reg_", batch_size, no_lags)
+        test_ds = create_dataset(crop_window, downsample_factor, "pred", "pred_resp", "test", "pred_", batch_size, no_lags)
+
+        run_model = GLMModel(no_lags, unprocessed_width, i, j, crop_width, downsample_factor)
+        run_model.train_manual(train_ds, val_ds, no_epochs, patience, regularizer_type, regularizer_value, learning_rate)
+        run_model.test_model(test_ds)
+        run_model.export_run("trial_one")
+
+        del train_ds
+        del val_ds
+        del test_ds
+
+        gc.collect()
+        K.clear_session()
 
