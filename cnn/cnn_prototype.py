@@ -11,16 +11,27 @@ from skimage.measure import block_reduce
 from moviepreppercnn import create_cnn_dataset, get_response
 #from sklearn.metrics import r2_score
 import gc
+
+
+
 batch_size = 64
 unprocessed_width = 480
 crop_width = 480
 crop_coords = (0, 0, 480, 480)
 downsample_factor = 16
 no_lags = 8
-movies_no = 20
 no_epochs = 3
 cropped_width = 30
 cropped_width = crop_width // downsample_factor
+
+run_dict = {
+    "batch_size": batch_size,
+    "crop_coords": crop_coords,
+    "downsample_factor": downsample_factor,
+    "no_lags": no_lags,
+    "no_epochs": no_epochs
+
+}
 
 def bang_out_movie(downsampled_movie, cropped_width):
     template = np.array([])
@@ -152,10 +163,6 @@ model = keras.Sequential([
     layers.ReLU()
     ])
 
-for x, y in train_dataset.take(1):
-    print(x.shape)
-    print(y.shape)
-
 optimizer = keras.optimizers.Adam(learning_rate=1e-5)
 model.compile(optimizer=optimizer, loss="mse", metrics=[r2_score])
 history = model.fit(train_dataset, epochs=no_epochs, validation_data=val_dataset)
@@ -163,15 +170,14 @@ test_loss, test_accuracy = model.evaluate(test_dataset)
 print(f"Test Loss: {test_loss:.4f}")
 print(f"Test Accuracy: {test_accuracy:.4f}")
 
-weights_dict = {}
+run_dict["test_loss"] = test_loss
+run_dict["test_accuracy"] = test_accuracy
 
 for layer in model.layers:
     if len(layer.get_weights()) > 0:
-        weights_dict[layer.name] = layer.get_weights()
+        run_dict[layer.name] = layer.get_weights()
 
-for layer in weights_dict:
-    print(layer)
-    print(weights_dict[layer][0].shape)
+
 
 
 #vectorize the Gaussian layer with tf.reduce_sum
@@ -181,3 +187,20 @@ for layer in weights_dict:
 #increase batch size
 #Use conv2d instead of 3d
 #use matrix multiplication
+
+def export_run(overall_trial_name, run_data):
+    now = str(datetime.now())
+    now = now.replace(" ", "_")
+    now = now.replace(":", "-")
+
+    file_name = "run_" + now + ".json"
+
+    if overall_trial_name != None:
+        os.makedirs("C:/neurophysiology_projects/cnn/runs/" + overall_trial_name, exist_ok=True)
+        with open("C:/neurophysiology_projects/cnn/runs/" + overall_trial_name + "/" + file_name, "w", encoding="utf-8") as file:
+            json.dump(run_data, file, indent=4)
+    else:
+        with open("C:/neurophysiology_projects/cnn/runs/" + file_name, "w", encoding="utf-8") as file:
+            json.dump(run_data, file, indent=4)
+
+export_run(None, run_dict)
