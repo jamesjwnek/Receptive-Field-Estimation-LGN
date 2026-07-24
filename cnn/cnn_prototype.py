@@ -9,7 +9,7 @@ import keras.backend as K
 from keras.callbacks import EarlyStopping
 from skimage.measure import block_reduce
 from moviepreppercnn import create_cnn_dataset, get_response
-from sklearn.metrics import r2_score
+#from sklearn.metrics import r2_score
 import gc
 batch_size = 64
 unprocessed_width = 480
@@ -18,7 +18,7 @@ crop_coords = (0, 0, 480, 480)
 downsample_factor = 16
 no_lags = 8
 movies_no = 20
-no_epochs = 200
+no_epochs = 3
 cropped_width = 30
 cropped_width = crop_width // downsample_factor
 
@@ -68,10 +68,10 @@ train_dataset = bang_out_dataset(20, no_lags, crop_coords, downsample_factor, "e
 val_dataset = bang_out_dataset(5, no_lags, crop_coords, downsample_factor, "reg", "reg_resp", "validation", "reg_", batch_size)
 test_dataset = bang_out_dataset(5, no_lags, crop_coords, downsample_factor, "pred", "pred_resp", "test", "pred_", batch_size)
 
-"""def r2_score(y_true, y_pred):
+def r2_score(y_true, y_pred):
     ss_res = tf.math.reduce_sum(tf.math.square(y_true - y_pred))
     ss_tot = tf.math.reduce_sum(tf.math.square(y_true - tf.math.reduce_mean(y_true)))
-    return 1 - ss_res / (ss_tot + 1e-7)"""
+    return 1 - ss_res / (ss_tot + 1e-7)
 
 class ClipWeightConstraint(keras.constraints.Constraint):
     def __init__(self, min_value =0.0, max_value = 1.0):
@@ -142,10 +142,12 @@ class Gaussian(layers.Layer):
 
 gaussian_layer = Gaussian()
 
+shared_prelu = layers.PReLU(shared_axes=[1,2])
+
 model = keras.Sequential([
     layers.Input(shape=(cropped_width, cropped_width, no_lags)),
     layers.Conv2D(1, (11, 11), strides=(1, 1), kernel_initializer="glorot_uniform"),
-    layers.PReLU(),
+    shared_prelu,
     gaussian_layer,
     layers.ReLU()
     ])
@@ -167,7 +169,9 @@ for layer in model.layers:
     if len(layer.get_weights()) > 0:
         weights_dict[layer.name] = layer.get_weights()
 
-print(weights_dict)
+for layer in weights_dict:
+    print(layer)
+    print(weights_dict[layer][0].shape)
 
 
 #vectorize the Gaussian layer with tf.reduce_sum
