@@ -36,17 +36,17 @@ class GLMModel:
 
 		self.model_noreg = models.Sequential([
 			layers.Input(shape=(self.n_features,)),
-			layers.Dense(1, kernel_initializer="random_normal", bias_initializer="zeros")
+			layers.Dense(1, kernel_initializer="he_normal", bias_initializer="zeros")
 			])
 
 		self.model_l1 = models.Sequential([
 			layers.Input(shape=(self.n_features,)),
-			layers.Dense(1, kernel_initializer="random_normal", bias_initializer="zeros", kernel_regularizer=regularizers.L1(self.regularizer_value))
+			layers.Dense(1, kernel_initializer="he_normal", bias_initializer="zeros", kernel_regularizer=regularizers.L1(self.regularizer_value))
 			])
 
 		self.model_l2 = models.Sequential([
 			layers.Input(shape=(self.n_features,)),
-			layers.Dense(1, kernel_initializer="random_normal", bias_initializer="zeros", kernel_regularizer=regularizers.L2(self.regularizer_value))
+			layers.Dense(1, kernel_initializer="he_normal", bias_initializer="zeros", kernel_regularizer=regularizers.L2(self.regularizer_value))
 			])
 
 		self.optimizer = keras.optimizers.Adam(learning_rate=self.learning_rate)
@@ -254,7 +254,11 @@ class GLMModel:
 
 		file_name = "run_" + now + ".json"
 
-		os.makedirs("C:/neurophysiology_projects/glm/runs/" + overall_trial_name, exist_ok=True)
-		with open("C:/neurophysiology_projects/glm/runs/" + overall_trial_name + "/" + file_name, "w", encoding="utf-8") as file:
-			json.dump(self.run_data, file, indent=4)
+		if overall_trial_name != None:
+			os.makedirs("C:/neurophysiology_projects/glm/runs/" + overall_trial_name, exist_ok=True)
+			with open("C:/neurophysiology_projects/glm/runs/" + overall_trial_name + "/" + file_name, "w", encoding="utf-8") as file:
+				json.dump(self.run_data, file, indent=4)
+		else:
+			with open("C:/neurophysiology_projects/glm/runs/" + file_name, "w", encoding="utf-8") as file:
+				json.dump(self.run_data, file, indent=4)
 

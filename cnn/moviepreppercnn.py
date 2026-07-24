@@ -10,6 +10,46 @@ from datetime import datetime
 frames_per_movie = 375
 no_lags = 8
 batch_size = 64
+crop_coords = (0, 0, 480, 480)
+downsample_factor = 16
+movies_no = 20
+
+def r2_score(y_true, y_pred):
+    ss_res = K.sum(K.square(y_true - y_pred))
+    ss_tot = K.sum(K.square(y_true - K.mean(y_true)))
+    return 1 - ss_res / (ss_tot + K.epsilon())
+
+def create_cnn_dataset(crop_coords, downsample_factor, movies_no, file_type_name, resp_data_key, folder_name_end, movie_file_name_middle, batch_size, no_lags):
+    trials, reps, resp = get_response(file_type_name, resp_data_key)
+    n_features = no_lags * ((crop_coords[2] - crop_coords[0]) // downsample_factor) ** 2
+    ds = tf.data.Dataset.from_generator(
+        lambda: cnn_generator(crop_coords, downsample_factor, movies_no, resp, trials, reps, folder_name_end, movie_file_name_middle, no_lags),
+        output_signature=(
+            tf.TensorSpec(shape=(no_lags, (crop_coords[2] - crop_coords[0]) // downsample_factor, (crop_coords[2] - crop_coords[0]) // downsample_factor, 1), dtype=tf.float32),
+            tf.TensorSpec(shape=(1,), dtype=tf.float32)
+        )
+    ).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
+    return ds
+
+def cnn_generator(crop_coords, downsample_factor, movies_no, resp, trials, reps, folder_name_end, movie_file_name_middle, no_lags):
+    processed_size = (crop_coords[2] - crop_coords[0]) // downsample_factor
+    for rep in range(reps):
+        for movie in range(movies_no):
+            with h5py.File(f"C:/neurophysiology_data/movies/H6214.010/nguyen_clips_{folder_name_end}/McGill_clips_hc_{movie_file_name_middle}0000_{(movie+1):02d}.mat", 'r') as f:
+                movie_data = f["mvMovie"]
+                for frame in range(frames_per_movie):
+                    current_response = resp[rep*trials + movie*frames_per_movie + frame, 0]
+                    padding_layers = max(no_lags-frame-1, 0)
+                    if padding_layers > 0:
+                        padding = np.zeros((padding_layers, processed_size, processed_size))
+                        yield np.concatenate((padding, block_reduce(movie_data[:frame+1,crop_coords[0]:crop_coords[2],crop_coords[1]:crop_coords[3]], block_size=(1, downsample_factor, downsample_factor), func=lambda block, axis: np.mean(block, axis=axis))), axis=0)[..., np.newaxis], np.array([current_response], dtype=np.float32)
+                    else:
+                        yield block_reduce(movie_data[frame-no_lags+1:frame+1,crop_coords[0]:crop_coords[2],crop_coords[1]:crop_coords[3]], block_size=(1, downsample_factor, downsample_factor), func=lambda block, axis: np.mean(block, axis=axis))[..., np.newaxis], np.array([current_response], dtype=np.float32)
+
+
+
+
 
 def create_dataset(crop_coords, downsample_factor, file_type_name, resp_data_key, folder_name_end, movie_file_name_middle, batch_size, no_lags):
     trials, reps, resp = get_response(file_type_name, resp_data_key)
@@ -96,6 +136,8 @@ def dataset_creator(resp_data, trials, reps, folder_name_end, movie_file_name_mi
 
 if __name__ == "__main__":
 
-    train_ds = create_dataset((0,0,120,120), 2, "est", "est_resp", "train", "", batch_size, no_lags)
-    val_ds = create_dataset((0,0,120,120), 2, "reg", "reg_resp", "validation", "reg_", batch_size, no_lags)
-    test_ds = create_dataset((0,0,120,120), 2, "pred", "pred_resp", "test", "pred_", batch_size, no_lags)
+    create_cnn_dataset(crop_coords, downsample_factor, movies_no, "est", "est_resp", "train", "")
+
+    #train_ds = create_dataset((0,0,120,120), 2, "est", "est_resp", "train", "", batch_size, no_lags)
+    #val_ds = create_dataset((0,0,120,120), 2, "reg", "reg_resp", "validation", "reg_", batch_size, no_lags)
+    #test_ds = create_dataset((0,0,120,120), 2, "pred", "pred_resp", "test", "pred_", batch_size, no_lags)

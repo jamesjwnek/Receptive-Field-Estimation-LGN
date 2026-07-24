@@ -3,11 +3,11 @@ from pathlib import Path
 
 
 directory = Path("C:/neurophysiology_projects/glm/runs")
-files = [f for f in directory.iterdir() if f.is_file()]
+files = [f for f in directory.glob("*.json")]
 files.reverse()
 
 with open(files[0], 'r', encoding='utf-8') as file:
-    data = json.load(file)
+	data = json.load(file)
 
 import pygame
 import pygame_menu
@@ -25,10 +25,10 @@ clock = pygame.time.Clock()
 my_font = pygame.font.SysFont('Arial', 16)
 
 menu = pygame_menu.Menu(
-    title='Past Runs',
-    width=400,
-    height=800,
-    theme=pygame_menu.themes.THEME_BLUE
+	title='Past Runs',
+	width=400,
+	height=800,
+	theme=pygame_menu.themes.THEME_BLUE
 )
 
 display = False
@@ -49,7 +49,8 @@ def show_run(path):
 
 	label_stuff = data.copy()
 	weights = np.array(label_stuff.pop("weights", None))
-	weights = weights.reshape((label_stuff["frame_width"],label_stuff["frame_width"],label_stuff["no_lags"]))
+	display_width = label_stuff["crop_width"] // label_stuff["downsample_factor"]
+	weights = weights.reshape((display_width,display_width,label_stuff["no_lags"]))
 	label_stuff.pop("training_stats", None)
 	label_stuff.pop("biases", None)
 
@@ -79,7 +80,7 @@ def show_run(path):
 
 
 for file_path in files:
-    menu.add.button(file_path.stem, show_run, file_path, font_size=16)
+	menu.add.button(file_path.stem, show_run, file_path, font_size=16)
 
 menu.add.button('Quit', pygame_menu.events.EXIT)
 menu.set_relative_position(0, 0)
