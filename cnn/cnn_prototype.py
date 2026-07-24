@@ -161,6 +161,13 @@ test_loss, test_accuracy = model.evaluate(test_dataset)
 print(f"Test Loss: {test_loss:.4f}")
 print(f"Test Accuracy: {test_accuracy:.4f}")
 
+weights_dict = {}
+
+for layer in model.layers:
+    if len(layer.get_weights()) > 0:
+        weights_dict[layer.name] = layer.get_weights()
+
+print(weights_dict)
 
 
 #vectorize the Gaussian layer with tf.reduce_sum
