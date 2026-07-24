@@ -12,6 +12,10 @@ from moviepreppercnn import create_cnn_dataset, get_response
 #from sklearn.metrics import r2_score
 import gc
 
+import json
+from datetime import datetime
+from pathlib import Path
+import os
 
 
 batch_size = 64
@@ -177,7 +181,7 @@ for layer in model.layers:
     if len(layer.get_weights()) > 0:
         weight_list = []
         for weight in layer.get_weights():
-            weight_list.append(weight.to_list())
+            weight_list.append(weight.tolist())
 
         run_dict[layer.name] = weight_list
 
