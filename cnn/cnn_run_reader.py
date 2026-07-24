@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-directory = Path("C:/neurophysiology_projects/glm/runs")
+directory = Path("C:/neurophysiology_projects/cnn/runs")
 files = [f for f in directory.glob("*.json")]
 files.reverse()
 
@@ -19,7 +19,7 @@ import numpy as np
 pygame.init()
 
 screen = pygame.display.set_mode((2000, 800))
-pygame.display.set_caption("Run Reader")
+pygame.display.set_caption("CNN Run Reader")
 clock = pygame.time.Clock()
 
 my_font = pygame.font.SysFont('Arial', 16)
@@ -48,17 +48,19 @@ def show_run(path):
 	display = True
 
 	label_stuff = data.copy()
-	weights = np.array(label_stuff.pop("weights", None))
-	display_width = label_stuff["crop_width"] // label_stuff["downsample_factor"]
-	weights = weights.reshape((display_width,display_width,label_stuff["no_lags"]))
-	label_stuff.pop("training_stats", None)
-	label_stuff.pop("biases", None)
+	conv2d_weights = np.array(label_stuff.pop("conv2d", None)[0])
+	#conv2d_bias = label_stuff.pop("conv2d", None)[1]
+	#prelu_parameter = label_stuff.pop("p_re_lu", None)
+	gaussian_weights = np.array(label_stuff.pop("gaussian", None))
+	gaussian_weights_dict = dict(zip(["x_0", "y_0", "A", "s_x", "s_y", "theta"], gaussian_weights))
 
 	label_stuff["test_loss"] = round(label_stuff["test_loss"], 2)
 	label_stuff["test_accuracy"] = round(label_stuff["test_accuracy"], 2)
 
 	global labels_list
 	labels_list = []
+
+	label_stuff.update(gaussian_weights_dict)
 
 	slider.enable()
 	slider.show()
@@ -70,9 +72,10 @@ def show_run(path):
 
 	global weights_list
 	weights_list = []
-	weights = weights * slider.getValue() / weights.max()
+	conv2d_weights = conv2d_weights * slider.getValue() / conv2d_weights.max()
+	conv2d_weights = np.squeeze(conv2d_weights, axis=-1)
 	for i in range(label_stuff["no_lags"]):
-		pic = weights[:,:,i]
+		pic = conv2d_weights[:,:,i]
 		pic = 256 / (1 + np.exp(-1 * pic))
 		picsurf = pygame.surfarray.make_surface(np.stack([pic.T]*3, axis=2))
 		picsurf = pygame.transform.scale(picsurf, (200, 200))

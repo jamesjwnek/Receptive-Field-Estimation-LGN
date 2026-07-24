@@ -9,7 +9,7 @@ import keras.backend as K
 from keras.callbacks import EarlyStopping
 from skimage.measure import block_reduce
 from moviepreppercnn import create_cnn_dataset, get_response
-#from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score
 import gc
 
 import json
@@ -17,6 +17,32 @@ from datetime import datetime
 from pathlib import Path
 import os
 
+class R2Callback(tf.keras.callbacks.Callback):
+    def __init__(self, train_ds, val_ds):
+        super().__init__()
+        self.train_ds = train_ds
+        self.val_ds = val_ds
+
+    def compute_r2(self, dataset):
+        y_true = []
+        y_pred = []
+
+        for x, y in dataset:
+            pred = self.model.predict(x, verbose=0)
+
+            y_true.append(y.numpy())
+            y_pred.append(pred)
+
+        y_true = np.concatenate(y_true)
+        y_pred = np.concatenate(y_pred).squeeze()
+
+        return r2_score(y_true, y_pred)
+
+    def on_epoch_end(self, epoch, logs=None):
+        train_r2 = self.compute_r2(self.train_ds)
+        val_r2 = self.compute_r2(self.val_ds)
+
+        print(f"\nEopch {epoch+1}: train R2 = {train_r2:.4f}, val R2 = {val_r2:.4f}")
 
 batch_size = 64
 unprocessed_width = 480
@@ -27,15 +53,27 @@ no_lags = 8
 no_epochs = 3
 cropped_width = 30
 cropped_width = crop_width // downsample_factor
+learning_rate = 1e-5
+patience=20
 
 run_dict = {
     "batch_size": batch_size,
     "crop_coords": crop_coords,
     "downsample_factor": downsample_factor,
     "no_lags": no_lags,
-    "no_epochs": no_epochs
+    "no_epochs": no_epochs,
+    "patience": patience
 
 }
+
+early_stopping - EarlyStopping(
+    monitor="val_loss",
+    patience=patience,
+    restore_best_weights=True,
+    mode="min",
+    min_delta=0.001,
+    verbose=1
+)
 
 def bang_out_movie(downsampled_movie, cropped_width):
     template = np.array([])
@@ -82,12 +120,12 @@ def bang_out_dataset(movies_no, no_lags, crop_coords, downsample_factor, file_ty
 train_dataset = bang_out_dataset(20, no_lags, crop_coords, downsample_factor, "est", "est_resp", "train", "", batch_size)
 val_dataset = bang_out_dataset(5, no_lags, crop_coords, downsample_factor, "reg", "reg_resp", "validation", "reg_", batch_size)
 test_dataset = bang_out_dataset(5, no_lags, crop_coords, downsample_factor, "pred", "pred_resp", "test", "pred_", batch_size)
-
+"""
 def r2_score(y_true, y_pred):
     ss_res = tf.math.reduce_sum(tf.math.square(y_true - y_pred))
     ss_tot = tf.math.reduce_sum(tf.math.square(y_true - tf.math.reduce_mean(y_true)))
     return 1 - ss_res / (ss_tot + 1e-7)
-
+"""
 class ClipWeightConstraint(keras.constraints.Constraint):
     def __init__(self, min_value =0.0, max_value = 1.0):
         self.min_value = min_value
@@ -167,13 +205,14 @@ model = keras.Sequential([
     layers.ReLU()
     ])
 
-optimizer = keras.optimizers.Adam(learning_rate=1e-5)
+optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
 model.compile(optimizer=optimizer, loss="mse", metrics=[r2_score])
-history = model.fit(train_dataset, epochs=no_epochs, validation_data=val_dataset)
+history = model.fit(train_dataset, epochs=no_epochs, validation_data=val_dataset, callbacks=[early_stopping, R2Callback(train_dataset, val_dataset)])
 test_loss, test_accuracy = model.evaluate(test_dataset)
 print(f"Test Loss: {test_loss:.4f}")
 print(f"Test Accuracy: {test_accuracy:.4f}")
 
+run_dict["initial_learning_rate"] = learning_rate
 run_dict["test_loss"] = test_loss
 run_dict["test_accuracy"] = test_accuracy
 
@@ -193,7 +232,6 @@ for layer in model.layers:
 #use pure tf.math instead of keras backend
 #try xla: in model.compile, set jit_compile = True
 #increase batch size
-#Use conv2d instead of 3d
 #use matrix multiplication
 
 def export_run(overall_trial_name, run_data):
