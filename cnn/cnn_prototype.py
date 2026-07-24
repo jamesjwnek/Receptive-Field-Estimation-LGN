@@ -175,7 +175,11 @@ run_dict["test_accuracy"] = test_accuracy
 
 for layer in model.layers:
     if len(layer.get_weights()) > 0:
-        run_dict[layer.name] = layer.get_weights()
+        weight_list = []
+        for weight in layer.get_weights():
+            weight_list.append(weight.to_list())
+
+        run_dict[layer.name] = weight_list
 
 
 
